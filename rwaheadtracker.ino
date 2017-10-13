@@ -39,7 +39,7 @@ long measuredTimeSinceLastStep = 0;
 long timeThreshSinceLastStep = 400;
 long stepCounter = 0;
 long timeThreshForStepPattern = 100;
-float threshholdForStep = 10.1;
+float threshholdForStep = 10.2;
 
 static uint8_t adv_data[] = 
 {
@@ -49,7 +49,7 @@ static uint8_t adv_data[] =
   
     0x08,
     BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,
-     'r','w','a','h','t','0','5',
+     'r','w','a','h','t','0','4',
   
     0x11,
     BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -169,7 +169,7 @@ void setup()
     if (bnoID != sensor.sensor_id)
     {
         Serial.println("\nNo Calibration Data for this sensor exists in EEPROM");
-        delay(500);
+        delay(250);
     }
     
     else
@@ -222,8 +222,7 @@ void setup()
     }
 
     if(withBLE)
-    {
-        
+    {      
         Serial.println("RWA_HEADTRACKER");
         ble.init();
       
@@ -266,29 +265,12 @@ void setup()
 
 static void  characteristic2_notify(btstack_timer_source_t *ts) 
 {       
-    if (sendStepState) 
-    {    
-        sprintf(rx_buf, "%d %d 1", yaw_degrees, pitch_degrees);
-        ble.sendNotify(character2_handle, (uint8_t*)rx_buf, strlen(rx_buf));
-        memset(rx_buf, 0x00, strlen(rx_buf));
-        sendStepState = 0;           
-    }
-    
-    else if (rx_state && !sendStepState) 
+    if (rx_state) 
     {      
-        sprintf(rx_buf, "%d %d 0", yaw_degrees, pitch_degrees);
-        ble.sendNotify(character2_handle, (uint8_t*)rx_buf, strlen(rx_buf));      
-        memset(rx_buf, 0x00, strlen(rx_buf));
-        rx_state = 0;    
-    }
-
-    else if (rx_state && sendStepState) 
-    {      
-        sprintf(rx_buf, "%d %d 1", yaw_degrees, pitch_degrees);
+        sprintf(rx_buf, "%d %d %.2f", yaw_degrees, pitch_degrees, accel[2]);
         ble.sendNotify(character2_handle, (uint8_t*)rx_buf, strlen(rx_buf));       
         memset(rx_buf, 0x00, strlen(rx_buf));
-        rx_state = 0;  
-        sendStepState = 0;  
+        rx_state = 0;   
     }
     
     ble.setTimer(ts, BNO055_SAMPLERATE_DELAY_MS);
@@ -304,50 +286,7 @@ bool yawSignificantlyChanged()
 void loop() 
 {
     currentTimeStamp = millis();
-    accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    
-    if(sendSteps)
-    {
-        double magnitude = sqrt(pow(accel[0],2) + pow(accel[1],2) + pow(accel[2], 2));
-        //Serial.println("");
-        //Serial.println(magnitude);
-        //Serial.println("");
-        if(currentTimeStamp-startTimeForStepPattern > 150)
-            stepPattern = false;
-
-         if(!stepBlocked)
-         {
-            if((magnitude >= (threshholdForStep - 0.1) ) && !stepPattern)
-            {
-                stepPattern = true;
-                startTimeForStepPattern = currentTimeStamp;
-            }
-
-            else if((magnitude >= threshholdForStep) && stepPattern &&
-            ((currentTimeStamp-startTimeForStepPattern) < timeThreshForStepPattern))
-            {
-                stepBlocked = true;
-                stepPattern = false;
-                sendStepState = 1;
-                startTimeForStepPattern = 0;
-                stepTimeStamp = millis();               
-                stepCounter++;
-
-                if(withSerial)               
-                    sendStepSerial = true;               
-            }
-         }
-         
-         measuredTimeSinceLastStep = currentTimeStamp - stepTimeStamp;
-         if(measuredTimeSinceLastStep > timeThreshSinceLastStep)
-         {
-              measuredTimeSinceLastStep = 0;
-              stepBlocked = false; 
-         }       
-    }
-    
-    if(sendRawGyro)
-        gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+    accel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);   
    
     imu::Quaternion quat = bno.getQuat();
     quat.normalize();
@@ -364,19 +303,14 @@ void loop()
         pitch_degrees += 360.0; // convert negative to positive angles   
     
     if(withWIFI)
-    {
-        if( (lastYaw_degrees != yaw_degrees) || (lastPitch_degrees != pitch_degrees) )
-            sendNTPpacket(timeServer, 1, yaw_degrees); 
+          sendNTPpacket(timeServer, 1, yaw_degrees); 
     }
     if(withBLE)
-    {       
-          if( (lastYaw_degrees != yaw_degrees) || (lastPitch_degrees != pitch_degrees) )
-               rx_state = 1;         
-    }
+          rx_state = 1;         
+    
     if(withSerial)
     {                 
-         sprintf(serial_buf, "%d %d %d", yaw_degrees, pitch_degrees, sendStepSerial);
-         sendStepSerial = false;
+         sprintf(serial_buf, "%d %d %.2f", yaw_degrees, pitch_degrees, accel[2]);
          Serial.println(serial_buf);         
     }
     
