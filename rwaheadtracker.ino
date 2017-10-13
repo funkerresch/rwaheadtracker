@@ -304,7 +304,7 @@ void loop()
     
     if(withWIFI)
           sendNTPpacket(timeServer, 1, yaw_degrees); 
-    }
+    
     if(withBLE)
           rx_state = 1;         
     
