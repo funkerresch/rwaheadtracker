@@ -49,7 +49,7 @@ static uint8_t adv_data[] =
   
     0x08,
     BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,
-     'r','w','a','h','t','0','4',
+     'r','w','a','h','t','0','5',
   
     0x11,
     BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -89,7 +89,6 @@ static advParams_t adv_params =
     .channel_map   = BLE_GAP_ADV_CHANNEL_MAP_ALL,
     .filter_policy = BLE_GAP_ADV_FP_ANY
 };
-
 
 static uint16_t character2_handle = 0x0000;
 static uint8_t characteristic2_data[CHARACTERISTIC2_MAX_LEN] = { 0x00 };
@@ -157,7 +156,8 @@ void setup()
         Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
         while(1);
     } 
-    
+
+    //bno.set2GRange();
     adafruit_bno055_offsets_t calibrationData;
     sensor_t sensor;   
     bno.getSensor(&sensor);
@@ -182,7 +182,7 @@ void setup()
         Serial.println("\n\nCalibration data loaded into BNO055");
     }
 
-    bno.setMode(Adafruit_BNO055::OPERATION_MODE_IMUPLUS);
+    bno.setMode(Adafruit_BNO055::OPERATION_MODE_NDOF);
     bno.setExtCrystalUse(true);
     
     if(withWIFI)
@@ -291,16 +291,22 @@ void loop()
     imu::Quaternion quat = bno.getQuat();
     quat.normalize();
     imu::Vector<3> q_to_euler = quat.toEuler();
-     
+    sensors_event_t event;
+    bno.getEvent(&event);
+    
     double yaw = q_to_euler.x();
+    //double yaw = event.orientation.x;
+    yaw_degrees = yaw;
     yaw_degrees = yaw * -180.0 / M_PI; // conversion to degrees
     if( yaw_degrees < 0 ) 
         yaw_degrees += 360.0; // convert negative to positive angles
 
-    double pitch = q_to_euler.y();
-    pitch_degrees = pitch * -180 / M_PI;
+    //double pitch = q_to_euler.y();
+    double pitch = event.orientation.y;
+    pitch_degrees = pitch;
+    /*pitch_degrees = pitch * -180 / M_PI;
     if( pitch_degrees < 0 ) 
-        pitch_degrees += 360.0; // convert negative to positive angles   
+        pitch_degrees += 360.0; // convert negative to positive angles   */
     
     if(withWIFI)
           sendNTPpacket(timeServer, 1, yaw_degrees); 
