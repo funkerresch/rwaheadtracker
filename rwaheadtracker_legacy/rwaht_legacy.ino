@@ -49,7 +49,7 @@ static uint8_t adv_data[] =
   
     0x08,
     BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,
-     'r','w','a','h','t','0','5',
+     'r','w','a','h','t','0','2',
   
     0x11,
     BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -182,7 +182,9 @@ void setup()
         Serial.println("\n\nCalibration data loaded into BNO055");
     }
 
-    bno.setMode(Adafruit_BNO055::OPERATION_MODE_NDOF);
+    //bno.setMode(Adafruit_BNO055::OPERATION_MODE_NDOF);
+    bno.setMode(Adafruit_BNO055::OPERATION_MODE_IMUPLUS);
+    
     bno.setExtCrystalUse(true);
     
     if(withWIFI)
